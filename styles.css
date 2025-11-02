@@ -1,0 +1,31 @@
+/* my lovely css*/
+body {
+    background-color: #f0f8ff;
+    font-family: 'Lexend', sans-serif;
+    color: #333333;
+    margin: 0;
+    padding: 0;
+}
+
+h1 {
+    color: #0066cc;
+    text-align: center;
+    margin-top: 20px;
+}
+
+h2 {
+    color: #004080;
+    margin-top: 15px;
+}
+
+
+h3 {
+    color: #003366;
+    margin-top: 10px;
+}
+
+
+p {
+    line-height: 1.6;
+    margin: 10px 20px;
+}
