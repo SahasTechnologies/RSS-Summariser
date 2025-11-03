@@ -47,6 +47,15 @@ document.getElementById("rss-form").addEventListener("submit", async (e) => {
 });
 
 // helper function
-function summarizeText(text) {
-  return text.length > 200 ? text.slice(0, 200) + "..." : text;
+async function summarizeText(text) {
+ const res = await fetch("https://rss-summariser.sahas-shimpi.workers.dev", {
+  method: "POST",
+  headers: { "Content-Type": "application/json"},
+  body: JSON.stringify({ text }),
+ });
+
+ const data = await res.json();
+ //the hugging face actual thing
+ return data[0]?.summary_text || text;
+ 
 }
