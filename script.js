@@ -259,10 +259,13 @@ async function summarizeAllFollowedSites(isInitialFetch = true) {
   const allItems = [];
   results.forEach((res, i) => {
     if (res.status === "fulfilled" && res.value) {
-      const items = extractItemsFromFeed(res.value, sites[i]);
+      const items = extractItemsFromFeed(res.value, sites[i], isInitialFetch);
       allItems.push(...items);
     }
   });
+  
+  await displayArticles(allItems, true);
+}
 
 async function displayArticles(items, showLoading = true) {
   if (!output) return;
@@ -444,4 +447,4 @@ if (toggleBtn && icon) {
   });
 } else {
   console.warn("Dark mode toggle elements not found; skipping dark-mode wiring.");
-}}
+}
