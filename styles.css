@@ -1,84 +1,133 @@
 /* my lovely css */
 body {
-    margin: 0;
-    background-color: #f0f8ff;
-    font-family: 'Lexend', sans-serif;
-    color: #333333;
-    padding: 0;
+  margin: 0;
+  background-color: #f0f8ff;
+  font-family: 'Lexend', sans-serif;
+  color: #333333;
+  padding: 0;
 }
 
 /* container centers content horizontally and adds breathing room */
 .container {
-    max-width: 800px;
-    margin: 40px auto; /* centers horizontally */
-    padding: 20px;
+  max-width: 800px;
+  margin: 40px auto; /* centers horizontally */
+  padding: 20px;
 }
 
 h1 {
-    color: #0066cc;
-    text-align: center;
-    margin-top: 20px;
+  color: #0066cc;
+  text-align: center;
+  margin-top: 20px;
 }
 
 h2 {
-    color: #004080;
-    margin-top: 15px;
+  color: #004080;
+  margin-top: 15px;
 }
 
 h3 {
-    color: #003366;
-    margin-top: 10px;
+  color: #003366;
+  margin-top: 10px;
 }
 
 p {
-    line-height: 1.6;
-    margin: 10px 20px;
+  line-height: 1.6;
+  margin: 10px 20px;
 }
 
 /* form layout */
 form {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 /* single definition for input */
 input[type="text"] {
-    padding: 10px 16px;
-    width: 60%;
-    border: 1px solid #cccccc;
-    border-right: none;                 /* merge with button */
-    border-radius: 24px 0 0 24px;       /* round left side */
-    outline: none;
-    font-family: 'Lexend', sans-serif;
+  padding: 10px 16px;
+  width: 60%;
+  border: 1px solid #cccccc;
+  border-right: none;                 /* merge with button */
+  border-radius: 24px 0 0 24px;       /* round left side */
+  outline: none;
+  font-family: 'Lexend', sans-serif;
 }
 
 /* button next to input */
 button {
-    padding: 10px 16px;
-    border: 1px solid #cccccc;
-    border-left: none;                  /* merge with input */
-    border-radius: 0 24px 24px 0;       /* round right side */
-    background: #4285f4;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  padding: 10px 16px;
+  border: 1px solid #cccccc;
+  border-left: none;                  /* merge with input */
+  border-radius: 0 24px 24px 0;       /* round right side */
+  background: #4285f4;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 button:disabled {
-    background: #999999;
-    cursor: not-allowed;
+  background: #999999;
+  cursor: not-allowed;
 }
 
 .spinner {
-    display: inline-block;
-    animation: spin 1s linear infinite;
+  display: inline-block;
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-    100% {
-        transform: rotate(360deg);
-    }
+  100% {
+    transform: rotate(360deg);
+  }
 }
+
+/* dark mode styles */
+.dark-mode-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #0a0929;
+  color: #d3d3d3;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+}
+
+.dark-mode-toggle:hover {
+  background: #1a1a2e;
+}
+
+body.dark-mode {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3 {
+  color: #90caf9;
+}
+
+body.dark-mode input[type="text"] {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+  border: 1px solid #444444;
+}
+
+body.dark-mode button {
+  background: #2979ff;
+  color: white;
+}
+
+body.dark-mode .note {
+  color: #aaaaaa;
+}
+
+/* animation */

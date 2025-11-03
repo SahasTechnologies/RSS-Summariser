@@ -1,9 +1,23 @@
-// simple summarizer fallback
-function summarizeText(text) {
-  // naive summary: first 30 words
-  return text.split(/\s+/).slice(0, 30).join(" ") + "...";
+// Summarizer function that calls the Cloudflare Worker
+async function summarizeText(text) {
+  try {
+    const res = await fetch("https://rss-summariser.sahas-shimpi.workers.dev/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!res.ok) throw new Error("Worker request failed");
+
+    const data = await res.json();
+    return data.summary || "No summary available";
+  } catch (err) {
+    console.error("Summarization error:", err);
+    return "Error summarizing this article.";
+  }
 }
 
+// Form submit handler
 document.getElementById("rss-form").addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -53,7 +67,7 @@ document.getElementById("rss-form").addEventListener("submit", async (e) => {
   for (let item of items) {
     const title = item.querySelector("title")?.textContent || "";
     const description = item.querySelector("description")?.textContent || "";
-    const summary = summarizeText(`${title}\n\n${description}`);
+    const summary = await summarizeText(`${title}\n\n${description}`);
 
     const div = document.createElement("div");
     div.innerHTML = `<strong>${title}</strong><p>${summary}</p><hr/>`;
@@ -67,4 +81,32 @@ document.getElementById("rss-form").addEventListener("submit", async (e) => {
   // re-enable button
   button.disabled = false;
   button.innerHTML = '<span class="material-symbols-rounded">search</span>';
+});
+
+
+// Dark mode toggle
+const toggleBtn = document.getElementById("dark-mode-toggle");
+const icon = document.getElementById("dark-mode-icon");
+
+// store the user's preference in local storage
+const savedTheme = localStorage.getItem("theme");
+if (
+  savedTheme === "dark" ||
+  (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches)
+) {
+  document.body.classList.add("dark-mode");
+  icon.textContent = "light_mode";
+}
+
+// make it actually work
+toggleBtn.addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+
+  if (document.body.classList.contains("dark-mode")) {
+    icon.textContent = "light_mode";
+    localStorage.setItem("theme", "dark");
+  } else {
+    icon.textContent = "dark_mode";
+    localStorage.setItem("theme", "light");
+  }
 });
