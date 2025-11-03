@@ -306,14 +306,50 @@ body.dark-mode .article-delete:hover {
   background: rgba(255, 102, 102, 0.2);
 }
 
+/* the PROGRESS BAR!!!! */
+.progress-container {
+  width: 100%;
+  max-width: 400px;
+  margin: 20px auto;
+  text-align: center;
+}
+
+/* the progress bar actually looks _so nice_ i love it */
+.progress-bar {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  margin: 12px 0;
+}
+
+.progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #4285f4;
+  transition: width 0.3s ease-out;
+  border-radius: 16px;
+}
+
+.progress-text {
+  font-size: 0.9rem;
+  color: #666666;
+  margin-top: 8px;
+}
+
+body.dark-mode .progress-bar {
+  background: #333333;
+}
+
+body.dark-mode .progress-fill {
+  background: #2979ff;
+}
+
+body.dark-mode .progress-text {
+  color: #999999;
+}
+
 /* never expected the css to get this big... */
-/* but here we are */
-/* my amazing css */
-/* end of file */
-/* wow that was a lot of css */
-/* i should probably stop now */
-/* end of styles.css */
-/* really the end */
-/* for real this time */
-/* the absolute end */
-/* goodbye */

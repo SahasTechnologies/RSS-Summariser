@@ -192,8 +192,22 @@ async function checkForNewArticles(sites, isBackground = false) {
   const knownArticles = loadKnownArticles();
   let hasNewArticles = false;
 
-  // fetch all feeds in parallel
-  const results = await Promise.allSettled(sites.map((s) => fetchFeedXml(s)));
+  if (!isBackground && output) {
+    updateProgress(0, sites.length, "Fetching RSS feeds...");
+  }
+
+  // fetch all feeds in parallel but track progress
+  let completed = 0;
+  const results = await Promise.allSettled(
+    sites.map(async (s) => {
+      const result = await fetchFeedXml(s);
+      completed++;
+      if (!isBackground && output) {
+        updateProgress(completed, sites.length, "Fetching RSS feeds...");
+      }
+      return result;
+    })
+  );
   const allItems = [];
   
   results.forEach((res, i) => {
@@ -267,18 +281,24 @@ async function summarizeAllFollowedSites(isInitialFetch = true) {
   await displayArticles(allItems, true);
 }
 
+function updateProgress(current, total, message) {
+  const percent = Math.round((current / total) * 100);
+  if (!output) return;
+  
+  output.innerHTML = `
+    <div class="progress-container">
+      <p>${message}</p>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: ${percent}%"></div>
+      </div>
+      <div class="progress-text">${current}/${total} (${percent}%)</div>
+    </div>
+  `;
+}
+
 async function displayArticles(items, showLoading = true) {
   if (!output) return;
   
-  if (showLoading) {
-    output.innerHTML = `
-      <div id="loading-indicator" style="text-align:center; margin:20px 0;">
-        <span class="material-symbols-rounded spinner">autorenew</span>
-        <p>Processing new articles...</p>
-      </div>
-    `;
-  }
-
   // sort by date desc
   items.sort((a, b) => b.time - a.time);
   
@@ -294,13 +314,21 @@ async function displayArticles(items, showLoading = true) {
   }
 
   // summarize each item sequentially
-  const resultsContainer = showLoading ? document.createElement("div") : output;
+  const resultsContainer = document.createElement("div");
+  let completed = 0;
+  const total = unreadItems.length;
+  
   for (const item of unreadItems) {
     const title = item.title;
     const description = item.description || "";
     // use article URL as cache key
     const cacheKey = item.link || `${item.source}:${title}`;
+    
+    // Update progress before starting each summary
+    updateProgress(completed, total, "Summarizing articles...");
+    
     const summary = await summarizeText(`${title}\n\n${description}`, cacheKey);
+    completed++;
 
     const div = document.createElement("div");
     div.className = "article-card";
@@ -448,3 +476,21 @@ if (toggleBtn && icon) {
 } else {
   console.warn("Dark mode toggle elements not found; skipping dark-mode wiring.");
 }
+
+// WHY IS MY JS SO LONG
+// all its meant to do is summarise rss feeds jeez
+// and check for new ones every 5 minutes
+// and cache summaries locally so it doesnt cost me money
+// and have a progress bar
+// and a loading spinner
+// and dark mode
+// and a notification for new articles
+// and let you mark articles as read
+// and let you add/remove rss feeds
+// and store everything in local storage
+// and handle CORS issues
+// and format dates nicely
+// and use a cloudflare worker to do the summarization
+// and have proper error handling
+// and be responsive
+// oh ok now i get it
