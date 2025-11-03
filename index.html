@@ -37,31 +37,20 @@
     <!-- dark mode toggle -->
     <button id="dark-mode-toggle" class="dark-mode-toggle" title="Toggle Dark Mode">
       <span class="material-symbols-rounded" id="dark-mode-icon">dark_mode</span>
-    </button>
-
-    <!-- wrapper that will animate -->
-    <div id="form-wrapper" class="form-wrapper">
-      <h1 class="title">RSS Summariser</h1>
-      <form id="rss-form">
-        <input
-          type="text"
-          id="rss-url"
-          placeholder="Enter RSS feed URL"
-          required
-        />
-        <button type="submit">
-          <span class="material-symbols-rounded">search</span>
-        </button>
-      </form>
-      <p class="note">Hi, please don't abuse this site since you are using AI tokens each time.</p>
-
-      <!-- Followed sites list (populated (put in) by script) -->
-      <div class="followed-sites">
-        <h3>Your sites</h3>
-        <ul id="followed-sites-list" aria-live="polite"></ul>
-      </div>
-    </div>
-
+    </button> <!-- autocomplete is acc so good-->
+    <h1 class="title">RSS Summariser</h1>
+    <form id="rss-form">
+      <input
+        type="text"
+        id="rss-url"
+        placeholder="Enter RSS feed URL"
+        required
+      />
+      <button type="submit">
+        <span class="material-symbols-rounded">search</span>
+      </button>
+    </form>
+    <p class="note">pls dont abuse this</p>
     <div id="summary-result" class="summary-result"></div>
   </div>
 
@@ -69,8 +58,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-
-<!-- Look at this HTML
- its so short and sweet
- unlike the html and js
- those are just so so so so tedious -->
