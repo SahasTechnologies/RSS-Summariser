@@ -1,14 +1,17 @@
 /* my lovely css */
 body {
     margin: 0;
-    height: 100vh; /* the full height */
-    display: flex;
-    justify-content: center;      /* horizontal center */
-    align-items: center;          /* vertical center */
     background-color: #f0f8ff;
     font-family: 'Lexend', sans-serif;
     color: #333333;
     padding: 0;
+}
+
+/* container centers content horizontally and adds breathing room */
+.container {
+    max-width: 800px;
+    margin: 40px auto; /* centers horizontally */
+    padding: 20px;
 }
 
 h1 {
@@ -67,4 +70,15 @@ button {
 button:disabled {
     background: #999999;
     cursor: not-allowed;
+}
+
+.spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
 }
