@@ -2,7 +2,7 @@
 body {
     margin: 0;
     height: 100vh; /* the full height */
-    display: flex;                /* <-- semicolon added */
+    display: flex;
     justify-content: center;      /* horizontal center */
     align-items: center;          /* vertical center */
     background-color: #f0f8ff;
@@ -32,20 +32,39 @@ p {
     margin: 10px 20px;
 }
 
-input[type="text"] {
-    padding: 10px;
-    width: 70%;
-    border: 1px solid #cccccc;    /* <-- semicolon added */
-    border-radius: 24px;
-    outline: none;
+/* form layout */
+form {
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
+/* single definition for input */
+input[type="text"] {
+    padding: 10px 16px;
+    width: 60%;
+    border: 1px solid #cccccc;
+    border-right: none;                 /* merge with button */
+    border-radius: 24px 0 0 24px;       /* round left side */
+    outline: none;
+    font-family: 'Lexend', sans-serif;
+}
+
+/* button next to input */
 button {
-    padding: 10px 20px;
-    margin-left: 10px;
-    border: none;
-    border-radius: 24px;
+    padding: 10px 16px;
+    border: 1px solid #cccccc;
+    border-left: none;                  /* merge with input */
+    border-radius: 0 24px 24px 0;       /* round right side */
     background: #4285f4;
     color: white;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+button:disabled {
+    background: #999999;
+    cursor: not-allowed;
 }

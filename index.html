@@ -6,6 +6,7 @@
     <title>RSS Summariser</title>
     <link rel="stylesheet" href="styles.css"> 
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600&display=swap" rel="stylesheet"> <!--Link for google lexend font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"> <!--the icons-->
 </head>
 
 <body>
@@ -13,8 +14,11 @@
         <h1 class="title">RSS Summariser</h1>
         <form id="rss-form">
             <input type="text" id="rss-url" placeholder="Enter RSS feed URL" required>
-            <button type="submit">Summarise</button>
+            <button type="submit">
+                <span class="material-icons">search</span>
+            </button>
         </form>
+        <p class="note">pls dont abuse this</p>
         <div id="summary-result" class="summary-result"></div>
     </div>
 
