@@ -1,9 +1,13 @@
-/* my lovely css*/
+/* my lovely css */
 body {
+    margin: 0;
+    height: 100vh; /* the full height */
+    display: flex;                /* <-- semicolon added */
+    justify-content: center;      /* horizontal center */
+    align-items: center;          /* vertical center */
     background-color: #f0f8ff;
     font-family: 'Lexend', sans-serif;
     color: #333333;
-    margin: 0;
     padding: 0;
 }
 
@@ -18,14 +22,30 @@ h2 {
     margin-top: 15px;
 }
 
-
 h3 {
     color: #003366;
     margin-top: 10px;
 }
 
-
 p {
     line-height: 1.6;
     margin: 10px 20px;
+}
+
+input[type="text"] {
+    padding: 10px;
+    width: 70%;
+    border: 1px solid #cccccc;    /* <-- semicolon added */
+    border-radius: 24px;
+    outline: none;
+}
+
+button {
+    padding: 10px 20px;
+    margin-left: 10px;
+    border: none;
+    border-radius: 24px;
+    background: #4285f4;
+    color: white;
+    cursor: pointer;
 }
