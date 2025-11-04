@@ -51,7 +51,10 @@
       </button>
     </form>
     <div id="feed-error" class="feed-error" aria-live="polite"></div>
-    <div id="feed-list" class="feed-list"></div>
+    <details id="feed-dropdown" class="feed-dropdown" open>
+      <summary><span class="material-symbols-rounded">rss_feed</span> Feeds (<span id="feed-count">0</span>)</summary>
+      <div id="feed-list" class="feed-list"></div>
+    </details>
     <p class="note">pls dont abuse this</p>
     <div id="summary-result" class="summary-result"></div>
   </div>

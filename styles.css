@@ -138,6 +138,7 @@ body.dark-mode .note {
   padding: 14px 16px;
   margin: 12px 0;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  position: relative;
 }
 
 .article-header {
@@ -171,8 +172,56 @@ body.dark-mode .article-date {
   color: #b0b0b0;
 }
 
+/* mark as read button */
+.mark-read {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  border: none;
+  background: #eef5ff;
+  color: #004080;
+  border-radius: 9999px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.mark-read .material-symbols-rounded {
+  font-variation-settings: 'FILL' 0, 'wght' 600, 'GRAD' 0, 'opsz' 24;
+}
+
+.mark-read:hover {
+  background: #dbe9ff;
+}
+
+body.dark-mode .mark-read {
+  background: #23314f;
+  color: #b9d1ff;
+}
+
+body.dark-mode .mark-read:hover {
+  background: #2b3b63;
+}
+
 
 /* feed list (yum yum) */
+.feed-dropdown summary, .posts-dropdown summary {
+  margin: 8px 20px 8px 20px;
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #004080;
+}
+
+body.dark-mode .feed-dropdown summary, body.dark-mode .posts-dropdown summary {
+  color: #b9d1ff;
+}
+
 .feed-list {
   margin: 8px 20px 16px 20px;
   display: flex;
@@ -184,15 +233,60 @@ body.dark-mode .article-date {
   background: #eef5ff;
   border: 1px solid #cfe0ff;
   color: #004080;
-  padding: 6px 10px;
+  padding: 6px 8px 6px 10px;
   border-radius: 9999px;
   font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
 }
 
 body.dark-mode .feed-item {
   background: #1e2a44;
   border-color: #23314f;
   color: #b9d1ff;
+}
+
+.feed-url {
+  display: inline-block;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-item .feed-delete {
+  all: unset;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  cursor: pointer;
+  color: inherit;
+  background: transparent;
+}
+
+.feed-item .feed-delete:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+body.dark-mode .feed-item .feed-delete:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* bottom-left note */
+.note {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.85;
 }
 
 .article-title a{

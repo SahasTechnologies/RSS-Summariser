@@ -84,6 +84,7 @@ async function summariseText(text) {
 // the thing for caching articles to not call ai every single tiem and drain my wallet
 const FEEDS_KEY = 'feeds';
 const CACHE_KEY = 'article_cache';
+const READ_KEY = 'read_articles';
 
 function loadFeeds() {
   try { return JSON.parse(localStorage.getItem(FEEDS_KEY)) || []; } catch (_) { return []; }
@@ -101,17 +102,30 @@ function saveCache(cache) {
   localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
 }
 
+function loadRead() {
+  try { return JSON.parse(localStorage.getItem(READ_KEY)) || {}; } catch (_) { return {}; }
+}
+
+function saveRead(read) {
+  localStorage.setItem(READ_KEY, JSON.stringify(read));
+}
+
 function renderFeedList() {
   const el = document.getElementById('feed-list');
   if (!el) return;
   const feeds = loadFeeds();
+  const countEl = document.getElementById('feed-count');
+  if (countEl) countEl.textContent = String(feeds.length);
   el.innerHTML = '';
   if (!feeds.length) return;
   const frag = document.createDocumentFragment();
   feeds.forEach((u) => {
     const d = document.createElement('div');
     d.className = 'feed-item';
-    d.textContent = u;
+    d.innerHTML = `
+      <span class="feed-url" title="${escapeHtml(u)}">${escapeHtml(u)}</span>
+      <button class="feed-delete" data-url="${escapeHtml(u)}" title="Remove feed"><span class="material-symbols-rounded">close</span></button>
+    `;
     frag.appendChild(d);
   });
   el.appendChild(frag);
@@ -121,7 +135,10 @@ function renderArticles() {
   const output = document.getElementById('summary-result');
   if (!output) return;
   const cache = loadCache();
-  const items = Object.keys(cache).map((k) => cache[k]);
+  const read = loadRead();
+  const items = Object.keys(cache)
+    .map((k) => cache[k])
+    .filter((it) => !read[it.url]);
   items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   const container = document.createElement('div');
   items.forEach((item) => {
@@ -134,7 +151,8 @@ function renderArticles() {
           <strong class="article-title"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || item.url)}</a></strong>
           <span class="article-date">${escapeHtml(dateStr || '')}</span>
         </div>
-  <p class="article-body"><span class="material-symbols-rounded spinner">autorenew</span> Summarising...</p>
+        <button class="mark-read" data-url="${escapeHtml(item.url)}" title="Mark as read"><span class="material-symbols-rounded">done</span></button>
+        <p class="article-body"><span class="material-symbols-rounded spinner">autorenew</span> Summarising...</p>
       `;
     } else {
       div.innerHTML = `
@@ -142,6 +160,7 @@ function renderArticles() {
           <strong class="article-title"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || item.url)}</a></strong>
           <span class="article-date">${escapeHtml(dateStr || '')}</span>
         </div>
+        <button class="mark-read" data-url="${escapeHtml(item.url)}" title="Mark as read"><span class="material-symbols-rounded">done</span></button>
         <p class="article-body">${escapeHtml(item.summary)}</p>
       `;
     }
@@ -205,10 +224,16 @@ async function fetchAndProcessFeed(feedUrl) {
   for (let item of nodes) {
     const url = getItemLink(item);
     if (!url) continue;
-    if (cache[url]) continue;
+    const pubDate = parseDateFromItem(item);
+    if (cache[url]) {
+      if (pubDate) {
+        cache[url].date = pubDate.toISOString();
+        saveCache(cache);
+      }
+      continue;
+    }
     const title = getItemTitle(item);
     const description = getItemDescription(item);
-    const pubDate = parseDateFromItem(item);
     cache[url] = {
       url,
       title,
@@ -302,6 +327,29 @@ toggleBtn.addEventListener('click', () => {
     icon.textContent = 'dark_mode';
     localStorage.setItem('theme', 'light');
   }
+});
+
+document.addEventListener('click', (e) => {
+  const target = e.target.closest('.mark-read');
+  if (!target) return;
+  const url = target.getAttribute('data-url');
+  if (!url) return;
+  const read = loadRead();
+  read[url] = true;
+  saveRead(read);
+  renderArticles();
+});
+
+document.addEventListener('click', (e) => {
+  const del = e.target.closest('.feed-delete');
+  if (!del) return;
+  const url = del.getAttribute('data-url');
+  if (!url) return;
+  let feeds = loadFeeds();
+  if (!feeds.includes(url)) return;
+  feeds = feeds.filter((f) => f !== url);
+  saveFeeds(feeds);
+  renderFeedList();
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
