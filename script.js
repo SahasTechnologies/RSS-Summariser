@@ -40,7 +40,7 @@ function formatDate(d) {
 }
 
 // Call our Cloudflare Worker (which safely uses the API key)
-async function summarizeText(text) {
+async function summariseText(text) {
   try {
     const res = await fetch('https://rss-summarizer-worker.sahas-shimpi.workers.dev', {
       method: 'POST',
@@ -59,9 +59,9 @@ async function summarizeText(text) {
     let data;
     try {
       data = JSON.parse(responseText);
-    } catch (e) {
+      } catch (e) {
       console.error('JSON parse error:', e, 'Response text:', responseText);
-      throw new Error('Invalid response from summarization service');
+      throw new Error('Invalid response from summarisation service');
     }
 
     // Handle array response format
@@ -74,10 +74,10 @@ async function summarizeText(text) {
       return data.summary_text;
     }
 
-    throw new Error('Unexpected response format from summarization service');
+    throw new Error('Unexpected response format from summarisation service');
   } catch (err) {
-    console.error('Summarization error:', err);
-    return `Summarization failed: ${err.message}`;
+    console.error('Summarisation error:', err);
+    return `Summarisation failed: ${err.message}`;
   }
 }
 
@@ -134,7 +134,7 @@ function renderArticles() {
           <strong class="article-title"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || item.url)}</a></strong>
           <span class="article-date">${escapeHtml(dateStr || '')}</span>
         </div>
-        <p class="article-body"><span class="material-symbols-rounded spinner">autorenew</span> Summarizing...</p>
+  <p class="article-body"><span class="material-symbols-rounded spinner">autorenew</span> Summarising...</p>
       `;
     } else {
       div.innerHTML = `
@@ -198,6 +198,9 @@ async function fetchAndProcessFeed(feedUrl) {
   const text = await fetchFeedContents(feedUrl);
   const xml = parseXml(text);
   const nodes = Array.from(xml.querySelectorAll('item, entry')).slice(0, 5);
+  if (nodes.length === 0) {
+    throw new Error('Nothing found here... check if you have the right URL');
+  }
   const cache = loadCache();
   for (let item of nodes) {
     const url = getItemLink(item);
@@ -214,7 +217,7 @@ async function fetchAndProcessFeed(feedUrl) {
     };
     saveCache(cache);
     renderArticles();
-    const summary = await summarizeText(`${title}\n\n${description}`);
+  const summary = await summariseText(`${title}\n\n${description}`);
     cache[url].summary = summary;
     saveCache(cache);
     renderArticles();
