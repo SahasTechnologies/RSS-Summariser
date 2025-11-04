@@ -70,34 +70,60 @@ export async function onRequest(context) {
     const models = [
       'facebook/bart-large-cnn',
       'sshleifer/distilbart-cnn-12-6',
-      'google/pegasus-xsum'
+      'google/pegasus-xsum',
+      'facebook/bart-large-xsum',
+      'philschmid/bart-large-cnn-samsum'
     ];
 
     let lastError = null;
+    let successfulModel = null;
+    let successfulParsed = null;
     
     // Try each model in sequence until one works
     for (const model of models) {
       try {
-        const hfResponse = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+        console.log(`Trying model: ${model}`);
+        
+        const hfResponse = await fetch(`https://router.huggingface.co/hf-inference/models/${model}`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${hfKey}`,
             'Content-Type': 'application/json',
             Accept: 'application/json',
           },
-          body: JSON.stringify({ inputs: input, parameters }),
+          body: JSON.stringify({ 
+            inputs: input,
+            parameters: {
+              ...parameters,
+              wait_for_model: true
+            }
+          }),
         });
 
         const text = await hfResponse.text();
         let parsed;
-        try { parsed = JSON.parse(text); } catch { parsed = text; }
+        try { 
+          parsed = JSON.parse(text); 
+        } catch { 
+          parsed = text; 
+        }
+
+        // Check if the model is still loading
+        // idk if its ur internet or huggingface
+        if (typeof parsed === 'object' && parsed.error && parsed.error.includes('Loading')) {
+          console.log(`Model ${model} is loading, waiting...`);
+          // Wait for 5 seconds before trying the next model
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          continue;
+        }
 
         if (hfResponse.ok) {
           // If the request was successful, use this model's response
           if (!parsed || (Array.isArray(parsed) && parsed.length === 0)) {
             throw new Error('Empty response from model');
           }
-          // Exit the loop if we got a valid response
+          successfulModel = model;
+          successfulParsed = parsed;
           break;
         }
 
@@ -129,18 +155,31 @@ export async function onRequest(context) {
       });
     }
 
-    let summary = null;
-    if (Array.isArray(parsed) && parsed.length && parsed[0].summary_text) {
-      summary = parsed[0].summary_text;
-    } else if (parsed && parsed.summary_text) {
-      summary = parsed.summary_text;
-    } else if (typeof parsed === 'string') {
-      summary = parsed;
-    } else {
-      summary = JSON.stringify(parsed);
+    if (!successfulModel || !successfulParsed) {
+      return new Response(JSON.stringify({ 
+        error: 'All summarization models failed',
+        details: lastError
+      }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+      });
     }
 
-    return new Response(JSON.stringify({ summary }), {
+    let summary = null;
+    if (Array.isArray(successfulParsed) && successfulParsed.length && successfulParsed[0].summary_text) {
+      summary = successfulParsed[0].summary_text;
+    } else if (successfulParsed && successfulParsed.summary_text) {
+      summary = successfulParsed.summary_text;
+    } else if (typeof successfulParsed === 'string') {
+      summary = successfulParsed;
+    } else {
+      summary = JSON.stringify(successfulParsed);
+    }
+
+    return new Response(JSON.stringify({ 
+      summary,
+      model: successfulModel 
+    }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders() },
     });
