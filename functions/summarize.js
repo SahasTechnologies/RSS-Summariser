@@ -66,23 +66,65 @@ export async function onRequest(context) {
   }
 
   try {
-    const hfResponse = await fetch('https://api-inference.huggingface.co/models/facebook/bart-large-cnn', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${hfKey}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ inputs: input, parameters }),
-    });
+    // List of models to try in order of preference
+    const models = [
+      'facebook/bart-large-cnn',
+      'sshleifer/distilbart-cnn-12-6',
+      'google/pegasus-xsum'
+    ];
 
-    const text = await hfResponse.text();
-    let parsed;
-    try { parsed = JSON.parse(text); } catch { parsed = text; }
+    let lastError = null;
+    
+    // Try each model in sequence until one works
+    for (const model of models) {
+      try {
+        const hfResponse = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${hfKey}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ inputs: input, parameters }),
+        });
 
-    if (!hfResponse.ok) {
-      return new Response(JSON.stringify({ error: 'Hugging Face API error', details: parsed }), {
-        status: hfResponse.status || 502,
+        const text = await hfResponse.text();
+        let parsed;
+        try { parsed = JSON.parse(text); } catch { parsed = text; }
+
+        if (hfResponse.ok) {
+          // If the request was successful, use this model's response
+          if (!parsed || (Array.isArray(parsed) && parsed.length === 0)) {
+            throw new Error('Empty response from model');
+          }
+          // Exit the loop if we got a valid response
+          break;
+        }
+
+        // Store the error and try the next model
+        lastError = { model, error: parsed };
+        
+        // If the error is not related to the model being unavailable, don't try other models
+        if (hfResponse.status !== 410 && hfResponse.status !== 503) {
+          throw new Error(JSON.stringify(lastError));
+        }
+      } catch (modelErr) {
+        lastError = { model, error: modelErr.message };
+        // Continue to next model unless this is the last one
+        if (model === models[models.length - 1]) {
+          throw new Error('All summarization models failed: ' + JSON.stringify(lastError));
+        }
+      }
+    }
+
+    // If we get here and lastError is still set, it means all models failed
+    if (lastError) {
+      return new Response(JSON.stringify({ 
+        error: 'Summarization service unavailable', 
+        details: 'All models failed to respond',
+        lastError 
+      }), {
+        status: 503,
         headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       });
     }

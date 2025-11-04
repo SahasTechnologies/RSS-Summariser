@@ -26,22 +26,34 @@ async function summarizeText(text) {
       body: JSON.stringify({ text }),
     });
 
+    const data = await res.json();
+    
     if (!res.ok) {
-      const errData = await res.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errData.error || `Request failed with status ${res.status}`);
+      // Handle specific error cases
+      if (res.status === 503) {
+        throw new Error('Summarization service is temporarily unavailable. Please try again in a few minutes.');
+      }
+      if (data.error) {
+        if (data.details) {
+          throw new Error(`${data.error}: ${typeof data.details === 'string' ? data.details : JSON.stringify(data.details)}`);
+        }
+        throw new Error(data.error);
+      }
+      throw new Error(`Request failed with status ${res.status}`);
     }
 
-    const data = await res.json();
     if (!data.summary) {
-      throw new Error('No summary was generated');
+      throw new Error('No summary was generated. Please try again.');
     }
+    
     return data.summary;
   } catch (err) {
     console.error('Summarization error:', err);
     if (err.message.includes('Failed to fetch')) {
       return 'Unable to connect to the summarization service. Please try again later.';
     }
-    return `Error: ${err.message}`;
+    // Return a user-friendly error message
+    return `Summarization failed: ${err.message}`;
   }
 }
 
