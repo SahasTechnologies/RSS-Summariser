@@ -17,6 +17,28 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+function parseDateFromItem(item) {
+  const text =
+    item.querySelector('pubDate')?.textContent ||
+    item.querySelector('published')?.textContent ||
+    item.querySelector('updated')?.textContent ||
+    item.querySelector('dc\\:date')?.textContent ||
+    item.querySelector('date')?.textContent ||
+    '';
+  const d = new Date(text);
+  if (!isNaN(d)) return d;
+  return null;
+}
+
+function formatDate(d) {
+  if (!(d instanceof Date) || isNaN(d)) return '';
+  try {
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch (_) {
+    return d.toISOString().slice(0, 10);
+  }
+}
+
 // Call our Cloudflare Worker (which safely uses the API key)
 async function summarizeText(text) {
   try {
@@ -129,15 +151,20 @@ document.getElementById('rss-form').addEventListener('submit', async (e) => {
     for (let item of items) {
       const title = stripHtml(item.querySelector('title')?.textContent || '');
       const description = stripHtml(item.querySelector('description')?.textContent || '');
+      // finds the date of publication to show it next to the title
+      const pubDate = parseDateFromItem(item);
+      const dateStr = formatDate(pubDate) || '';
       
       const div = document.createElement('div');
       div.className = 'article-summary';
       
-      // Show article title and loading indicator while summarizing
+      // Show article title and loading indicator while summarising
       div.innerHTML = `
-        <strong>${escapeHtml(title)}</strong>
-        <p><span class="material-symbols-rounded spinner">autorenew</span> Summarizing...</p>
-        <hr/>
+        <div class="article-header">
+          <strong class="article-title">${escapeHtml(title)}</strong>
+          <span class="article-date">${escapeHtml(dateStr)}</span>
+        </div>
+        <p class="article-body"><span class="material-symbols-rounded spinner">autorenew</span> Summarizing...</p>
       `;
       resultsContainer.appendChild(div);
       
@@ -146,9 +173,11 @@ document.getElementById('rss-form').addEventListener('submit', async (e) => {
       
       // Update with the summary
       div.innerHTML = `
-        <strong>${escapeHtml(title)}</strong>
-        <p>${escapeHtml(summary)}</p>
-        <hr/>
+        <div class="article-header">
+          <strong class="article-title">${escapeHtml(title)}</strong>
+          <span class="article-date">${escapeHtml(dateStr)}</span>
+        </div>
+        <p class="article-body">${escapeHtml(summary)}</p>
       `;
     }
 
