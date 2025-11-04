@@ -17,45 +17,48 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-// Summarizer function that calls the Cloudflare Pages Function at /summarize
+// Call our Cloudflare Worker (which safely uses the API key)
 async function summarizeText(text) {
   try {
-    const res = await fetch('/summarize', {
+    const res = await fetch('https://rss-summarizer-worker.sahas-shimpi.workers.dev', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ text })
     });
 
-    const data = await res.json();
-    
     if (!res.ok) {
-      // Handle specific error cases
-      if (res.status === 503) {
-        throw new Error('Summarization service is temporarily unavailable. Please try again in a few minutes.');
-      }
-      if (data.error) {
-        if (data.details) {
-          throw new Error(`${data.error}: ${typeof data.details === 'string' ? data.details : JSON.stringify(data.details)}`);
-        }
-        throw new Error(data.error);
-      }
       throw new Error(`Request failed with status ${res.status}`);
     }
 
-    if (!data.summary) {
-      throw new Error('No summary was generated. Please try again.');
+    // Carefully handle JSON parsing
+    const responseText = await res.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error('JSON parse error:', e, 'Response text:', responseText);
+      throw new Error('Invalid response from summarization service');
     }
-    
-    return data.summary;
+
+    // Handle array response format
+    if (Array.isArray(data) && data[0] && data[0].summary_text) {
+      return data[0].summary_text;
+    }
+
+    // Handle direct summary_text format
+    if (data && data.summary_text) {
+      return data.summary_text;
+    }
+
+    throw new Error('Unexpected response format from summarization service');
   } catch (err) {
     console.error('Summarization error:', err);
-    if (err.message.includes('Failed to fetch')) {
-      return 'Unable to connect to the summarization service. Please try again later.';
-    }
-    // Return a user-friendly error message
     return `Summarization failed: ${err.message}`;
   }
 }
+
 
 // Form submit handler
 document.getElementById('rss-form').addEventListener('submit', async (e) => {
