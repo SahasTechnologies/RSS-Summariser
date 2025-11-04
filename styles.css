@@ -171,4 +171,47 @@ body.dark-mode .article-date {
   color: #b0b0b0;
 }
 
-/* animation */
+
+/* feed list (yum yum) */
+.feed-list {
+  margin: 8px 20px 16px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feed-item {
+  background: #eef5ff;
+  border: 1px solid #cfe0ff;
+  color: #004080;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+}
+
+body.dark-mode .feed-item {
+  background: #1e2a44;
+  border-color: #23314f;
+  color: #b9d1ff;
+}
+
+.article-title a{
+  color: inherit;
+  text-decoration: none;
+}
+
+.article-title a:hover {
+  text-decoration: underline;
+}
+
+/* theres so much css for a simple site */
+/* that i guess one day you just forget you coded something 
+and you just keep adding more and more 
+and more
+and more
+and more
+and more    */
+/* until you have a massive css file */
+/* tbh i like refactoring but i also dont like refactoring
+i like the part where all your code is organised
+but everything just breaks */

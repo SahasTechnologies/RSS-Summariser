@@ -81,6 +81,152 @@ async function summarizeText(text) {
   }
 }
 
+// the thing for caching articles to not call ai every single tiem and drain my wallet
+const FEEDS_KEY = 'feeds';
+const CACHE_KEY = 'article_cache';
+
+function loadFeeds() {
+  try { return JSON.parse(localStorage.getItem(FEEDS_KEY)) || []; } catch (_) { return []; }
+}
+
+function saveFeeds(feeds) {
+  localStorage.setItem(FEEDS_KEY, JSON.stringify(feeds));
+}
+
+function loadCache() {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch (_) { return {}; }
+}
+
+function saveCache(cache) {
+  localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+}
+
+function renderFeedList() {
+  const el = document.getElementById('feed-list');
+  if (!el) return;
+  const feeds = loadFeeds();
+  el.innerHTML = '';
+  if (!feeds.length) return;
+  const frag = document.createDocumentFragment();
+  feeds.forEach((u) => {
+    const d = document.createElement('div');
+    d.className = 'feed-item';
+    d.textContent = u;
+    frag.appendChild(d);
+  });
+  el.appendChild(frag);
+}
+
+function renderArticles() {
+  const output = document.getElementById('summary-result');
+  if (!output) return;
+  const cache = loadCache();
+  const items = Object.keys(cache).map((k) => cache[k]);
+  items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  const container = document.createElement('div');
+  items.forEach((item) => {
+    const div = document.createElement('div');
+    div.className = 'article-summary';
+    const dateStr = formatDate(new Date(item.date));
+    if (!item.summary) {
+      div.innerHTML = `
+        <div class="article-header">
+          <strong class="article-title"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || item.url)}</a></strong>
+          <span class="article-date">${escapeHtml(dateStr || '')}</span>
+        </div>
+        <p class="article-body"><span class="material-symbols-rounded spinner">autorenew</span> Summarizing...</p>
+      `;
+    } else {
+      div.innerHTML = `
+        <div class="article-header">
+          <strong class="article-title"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title || item.url)}</a></strong>
+          <span class="article-date">${escapeHtml(dateStr || '')}</span>
+        </div>
+        <p class="article-body">${escapeHtml(item.summary)}</p>
+      `;
+    }
+    container.appendChild(div);
+  });
+  output.innerHTML = '';
+  output.appendChild(container);
+}
+
+async function fetchFeedContents(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Direct fetch failed');
+    return await res.text();
+  } catch (err) {
+    const proxyRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+    if (!proxyRes.ok) throw new Error('Proxy fetch failed');
+    const data = await proxyRes.json();
+    return data.contents || '';
+  }
+}
+
+function parseXml(text) {
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(text || '', 'text/xml');
+  const parseError = xml.querySelector('parsererror');
+  if (parseError) {
+    throw new Error('Invalid RSS feed format');
+  }
+  return xml;
+}
+
+function getItemLink(item) {
+  const linkEl = item.querySelector('link');
+  const href = linkEl?.getAttribute && linkEl.getAttribute('href');
+  return (linkEl?.textContent || href || item.querySelector('guid')?.textContent || '').trim();
+}
+
+function getItemTitle(item) {
+  return stripHtml(item.querySelector('title')?.textContent || '');
+}
+
+function getItemDescription(item) {
+  const d =
+    item.querySelector('description')?.textContent ||
+    item.querySelector('content')?.textContent ||
+    item.querySelector('content\\:encoded')?.textContent ||
+    item.querySelector('summary')?.textContent ||
+    '';
+  return stripHtml(d);
+}
+
+async function fetchAndProcessFeed(feedUrl) {
+  const text = await fetchFeedContents(feedUrl);
+  const xml = parseXml(text);
+  const nodes = Array.from(xml.querySelectorAll('item, entry')).slice(0, 5);
+  const cache = loadCache();
+  for (let item of nodes) {
+    const url = getItemLink(item);
+    if (!url) continue;
+    if (cache[url]) continue;
+    const title = getItemTitle(item);
+    const description = getItemDescription(item);
+    const pubDate = parseDateFromItem(item);
+    cache[url] = {
+      url,
+      title,
+      date: pubDate ? pubDate.toISOString() : '',
+      summary: ''
+    };
+    saveCache(cache);
+    renderArticles();
+    const summary = await summarizeText(`${title}\n\n${description}`);
+    cache[url].summary = summary;
+    saveCache(cache);
+    renderArticles();
+  }
+}
+
+async function checkFeedsForUpdates() {
+  const feeds = loadFeeds();
+  for (const f of feeds) {
+    try { await fetchAndProcessFeed(f); } catch (_) {}
+  }
+}
 
 // Form submit handler
 document.getElementById('rss-form').addEventListener('submit', async (e) => {
@@ -97,7 +243,7 @@ document.getElementById('rss-form').addEventListener('submit', async (e) => {
 
   // disable button and show loading
   button.disabled = true;
-  button.innerHTML = '<span class="material-symbols-rounded">search</span>';
+  button.innerHTML = '<span class="material-symbols-rounded">add</span>';
   output.innerHTML = `
     <div id="loading-indicator" style="text-align:center; margin:20px 0;">
       <span class="material-symbols-rounded spinner">autorenew</span>
@@ -105,91 +251,27 @@ document.getElementById('rss-form').addEventListener('submit', async (e) => {
     </div>
   `;
 
-  let data;
-  try {
-    // Try direct fetch first
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Direct fetch failed');
-    const text = await res.text();
-    data = { contents: text };
-  } catch (err) {
-    // Fall back to CORS proxy
-    try {
-      const proxyRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-      if (!proxyRes.ok) throw new Error('Proxy fetch failed');
-      data = await proxyRes.json();
-    } catch (proxyErr) {
-      output.innerHTML = 'Failed to fetch the RSS feed. Please check the URL and try again.';
-      button.disabled = false;
-      button.innerHTML = '<span class="material-symbols-rounded">search</span>';
-      return;
-    }
+  let feeds = loadFeeds();
+  if (!feeds.includes(url)) {
+    feeds = [...feeds, url];
+    saveFeeds(feeds);
+    renderFeedList();
   }
 
   try {
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(data.contents || '', 'text/xml');
-    
+    // Try direct fetch first
+    await fetchAndProcessFeed(url);
+    // Fall back to CORS proxy
+    renderArticles();
     // Check for XML parsing errors
-    const parseError = xml.querySelector('parsererror');
-    if (parseError) {
-      throw new Error('Invalid RSS feed format');
-    }
-
-    const items = Array.from(xml.querySelectorAll('item')).slice(0, 5);
-
-    if (items.length === 0) {
-      output.innerHTML = "No articles found in this feed. Please check if you have the correct RSS URL.";
-      button.disabled = false;
-      button.innerHTML = '<span class="material-symbols-rounded">search</span>';
-      return;
-    }
-
-    // build results
-    const resultsContainer = document.createElement('div');
-    
-    for (let item of items) {
-      const title = stripHtml(item.querySelector('title')?.textContent || '');
-      const description = stripHtml(item.querySelector('description')?.textContent || '');
-      // finds the date of publication to show it next to the title
-      const pubDate = parseDateFromItem(item);
-      const dateStr = formatDate(pubDate) || '';
-      
-      const div = document.createElement('div');
-      div.className = 'article-summary';
-      
-      // Show article title and loading indicator while summarising
-      div.innerHTML = `
-        <div class="article-header">
-          <strong class="article-title">${escapeHtml(title)}</strong>
-          <span class="article-date">${escapeHtml(dateStr)}</span>
-        </div>
-        <p class="article-body"><span class="material-symbols-rounded spinner">autorenew</span> Summarizing...</p>
-      `;
-      resultsContainer.appendChild(div);
-      
-      // Start summarization
-      const summary = await summarizeText(`${title}\n\n${description}`);
-      
-      // Update with the summary
-      div.innerHTML = `
-        <div class="article-header">
-          <strong class="article-title">${escapeHtml(title)}</strong>
-          <span class="article-date">${escapeHtml(dateStr)}</span>
-        </div>
-        <p class="article-body">${escapeHtml(summary)}</p>
-      `;
-    }
-
-    // replace spinner with results
-    output.innerHTML = '';
-    output.appendChild(resultsContainer);
   } catch (err) {
     output.innerHTML = `Error: ${err.message}`;
   } finally {
+    // replace spinner with results
+    renderArticles();
     // re-enable button
     button.disabled = false;
-    button.innerHTML = '<span class="material-symbols-rounded">search</span>';
+    button.innerHTML = '<span class="material-symbols-rounded">add</span>';
   }
 });
 
@@ -218,3 +300,14 @@ toggleBtn.addEventListener('click', () => {
     localStorage.setItem('theme', 'light');
   }
 });
+
+document.addEventListener('DOMContentLoaded', async () => {
+  renderFeedList();
+  renderArticles();
+  try { await checkFeedsForUpdates(); } catch (_) {}
+  renderArticles();
+});
+
+//sometimes... your js js gets a bit too long
+//    (...your javascript just...)
+// yeah
