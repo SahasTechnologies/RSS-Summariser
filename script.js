@@ -1,9 +1,23 @@
-// client-side script for RSS Summariser (Pages-first)
+// client-side script for RSS Summariser
+
+// Helper function to strip HTML tags and decode entities
+function stripHtml(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || '';
+}
+
+// Helper function to escape HTML
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 // Summarizer function that calls the Cloudflare Pages Function at /summarize
-// this was the WORST part of coding this i hate ai
-// why cant inspect element just hide the api key
-// now i need to host another worker just to do this
 async function summarizeText(text) {
   try {
     const res = await fetch('/summarize', {
@@ -12,13 +26,22 @@ async function summarizeText(text) {
       body: JSON.stringify({ text }),
     });
 
-    if (!res.ok) throw new Error('Summarize request failed');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errData.error || `Request failed with status ${res.status}`);
+    }
 
     const data = await res.json();
-    return data.summary || 'No summary available';
+    if (!data.summary) {
+      throw new Error('No summary was generated');
+    }
+    return data.summary;
   } catch (err) {
     console.error('Summarization error:', err);
-    return 'Error summarizing this article.';
+    if (err.message.includes('Failed to fetch')) {
+      return 'Unable to connect to the summarization service. Please try again later.';
+    }
+    return `Error: ${err.message}`;
   }
 }
 
@@ -27,14 +50,17 @@ document.getElementById('rss-form').addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const button = e.target.querySelector('button');
-  const url = document.getElementById('rss-url').value;
+  const url = document.getElementById('rss-url').value.trim();
   const output = document.getElementById('summary-result');
 
-  // disable button
+  if (!url) {
+    output.innerHTML = 'Please enter a valid RSS feed URL';
+    return;
+  }
+
+  // disable button and show loading
   button.disabled = true;
   button.innerHTML = '<span class="material-symbols-rounded">search</span>';
-
-  // show spinner
   output.innerHTML = `
     <div id="loading-indicator" style="text-align:center; margin:20px 0;">
       <span class="material-symbols-rounded spinner">autorenew</span>
@@ -44,200 +70,107 @@ document.getElementById('rss-form').addEventListener('submit', async (e) => {
 
   let data;
   try {
+    // Try direct fetch first
     const res = await fetch(url);
-    if (!res.ok) throw new Error('Normal fetch failed');
+    if (!res.ok) throw new Error('Direct fetch failed');
     const text = await res.text();
     data = { contents: text };
   } catch (err) {
-    // CORS fallback in case it doesnt work
-    // is cors legal btw
-    const proxyRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-    data = await proxyRes.json();
+    // Fall back to CORS proxy
+    try {
+      const proxyRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+      if (!proxyRes.ok) throw new Error('Proxy fetch failed');
+      data = await proxyRes.json();
+    } catch (proxyErr) {
+      output.innerHTML = 'Failed to fetch the RSS feed. Please check the URL and try again.';
+      button.disabled = false;
+      button.innerHTML = '<span class="material-symbols-rounded">search</span>';
+      return;
+    }
   }
 
-  const parser = new DOMParser();
-  const xml = parser.parseFromString(data.contents, 'text/xml');
-  const items = Array.from(xml.querySelectorAll('item')).slice(0, 5);
+  try {
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(data.contents || '', 'text/xml');
+    
+    // Check for XML parsing errors
+    const parseError = xml.querySelector('parsererror');
+    if (parseError) {
+      throw new Error('Invalid RSS feed format');
+    }
 
-  if (items.length === 0) {
-    output.innerHTML = "There's nothing here... check if you got the right one";
+    const items = Array.from(xml.querySelectorAll('item')).slice(0, 5);
+
+    if (items.length === 0) {
+      output.innerHTML = "No articles found in this feed. Please check if you have the correct RSS URL.";
+      button.disabled = false;
+      button.innerHTML = '<span class="material-symbols-rounded">search</span>';
+      return;
+    }
+
+    // build results
+    const resultsContainer = document.createElement('div');
+    
+    for (let item of items) {
+      const title = stripHtml(item.querySelector('title')?.textContent || '');
+      const description = stripHtml(item.querySelector('description')?.textContent || '');
+      
+      const div = document.createElement('div');
+      div.className = 'article-summary';
+      
+      // Show article title and loading indicator while summarizing
+      div.innerHTML = `
+        <strong>${escapeHtml(title)}</strong>
+        <p><span class="material-symbols-rounded spinner">autorenew</span> Summarizing...</p>
+        <hr/>
+      `;
+      resultsContainer.appendChild(div);
+      
+      // Start summarization
+      const summary = await summarizeText(`${title}\n\n${description}`);
+      
+      // Update with the summary
+      div.innerHTML = `
+        <strong>${escapeHtml(title)}</strong>
+        <p>${escapeHtml(summary)}</p>
+        <hr/>
+      `;
+    }
+
+    // replace spinner with results
+    output.innerHTML = '';
+    output.appendChild(resultsContainer);
+  } catch (err) {
+    output.innerHTML = `Error: ${err.message}`;
+  } finally {
+    // re-enable button
     button.disabled = false;
     button.innerHTML = '<span class="material-symbols-rounded">search</span>';
-    return;
   }
-
-  // build results
-  const resultsContainer = document.createElement('div');
-
-  for (let item of items) {
-    const title = item.querySelector('title')?.textContent || '';
-    const description = item.querySelector('description')?.textContent || '';
-    const summary = await summarizeText(`${title}\n\n${description}`);
-
-    const div = document.createElement('div');
-    div.innerHTML = `<strong>${title}</strong><p>${summary}</p><hr/>`;
-    resultsContainer.appendChild(div);
-  }
-
-  // replace spinner with results
-  output.innerHTML = '';
-  output.appendChild(resultsContainer);
-
-  // re-enable button
-  button.disabled = false;
-  button.innerHTML = '<span class="material-symbols-rounded">search</span>';
 });
-
 
 // Dark mode toggle
 const toggleBtn = document.getElementById('dark-mode-toggle');
 const icon = document.getElementById('dark-mode-icon');
 
-// store the user's preference in local storage
+// Initialize theme
 const savedTheme = localStorage.getItem('theme');
 if (
   savedTheme === 'dark' ||
   (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
 ) {
-  // Clean, single copy of client-side script
-  // Calls Cloudflare Pages Function at /summarize and handles UI.
+  document.body.classList.add('dark-mode');
+  icon.textContent = 'light_mode';
+}
 
-  // Summarizer function that calls the Cloudflare Pages Function at /summarize
-  async function summarizeText(text) {
-    try {
-      const res = await fetch('/summarize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        throw new Error('Summarize request failed: ' + (errText || res.status));
-      }
-
-      const data = await res.json();
-      return data.summary || 'No summary available';
-    } catch (err) {
-      console.error('Summarization error:', err);
-      return 'Error summarizing this article.';
-    }
+// Theme toggle handler
+toggleBtn.addEventListener('click', () => {
+  document.body.classList.toggle('dark-mode');
+  if (document.body.classList.contains('dark-mode')) {
+    icon.textContent = 'light_mode';
+    localStorage.setItem('theme', 'dark');
+  } else {
+    icon.textContent = 'dark_mode';
+    localStorage.setItem('theme', 'light');
   }
-
-  // Form submit handler
-  const form = document.getElementById('rss-form');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const button = form.querySelector('button');
-      const url = document.getElementById('rss-url').value;
-      const output = document.getElementById('summary-result');
-
-      if (!button || !output) return;
-
-      // disable button
-      button.disabled = true;
-      button.innerHTML = '<span class="material-symbols-rounded">search</span>';
-
-      // show spinner
-      output.innerHTML = `
-        <div id="loading-indicator" style="text-align:center; margin:20px 0;">
-          <span class="material-symbols-rounded spinner">autorenew</span>
-          <p>Loading articles...</p>
-        </div>
-      `;
-
-      let data;
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Normal fetch failed');
-        const text = await res.text();
-        data = { contents: text };
-      } catch (err) {
-        // CORS fallback
-        try {
-          const proxyRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-          data = await proxyRes.json();
-        } catch (proxyErr) {
-          output.innerHTML = 'Failed to fetch the RSS feed.';
-          button.disabled = false;
-          button.innerHTML = '<span class="material-symbols-rounded">search</span>';
-          return;
-        }
-      }
-
-      const parser = new DOMParser();
-      const xml = parser.parseFromString(data.contents || '', 'text/xml');
-      const items = Array.from(xml.querySelectorAll('item')).slice(0, 5);
-
-      if (items.length === 0) {
-        output.innerHTML = "There's nothing here... check if you got the right one";
-        button.disabled = false;
-        button.innerHTML = '<span class="material-symbols-rounded">search</span>';
-        return;
-      }
-
-      // build results
-      const resultsContainer = document.createElement('div');
-
-      for (let item of items) {
-        const title = item.querySelector('title')?.textContent || '';
-        const description = item.querySelector('description')?.textContent || '';
-        const summary = await summarizeText(`${title}\n\n${description}`);
-
-        const div = document.createElement('div');
-        div.innerHTML = `<strong>${escapeHtml(title)}</strong><p>${escapeHtml(summary)}</p><hr/>`;
-        resultsContainer.appendChild(div);
-      }
-
-      // replace spinner with results
-      output.innerHTML = '';
-      output.appendChild(resultsContainer);
-
-      // re-enable button
-      button.disabled = false;
-      button.innerHTML = '<span class="material-symbols-rounded">search</span>';
-    });
-  }
-
-  // Dark mode toggle
-  const toggleBtn = document.getElementById('dark-mode-toggle');
-  const icon = document.getElementById('dark-mode-icon');
-
-  if (toggleBtn && icon) {
-    // store the user's preference in local storage
-    const savedTheme = localStorage.getItem('theme');
-    if (
-      savedTheme === 'dark' ||
-      (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
-    ) {
-      document.body.classList.add('dark-mode');
-      icon.textContent = 'light_mode';
-    }
-
-    // make it actually work
-    toggleBtn.addEventListener('click', () => {
-      document.body.classList.toggle('dark-mode');
-
-      if (document.body.classList.contains('dark-mode')) {
-        icon.textContent = 'light_mode';
-        localStorage.setItem('theme', 'dark');
-      } else {
-        icon.textContent = 'dark_mode';
-        localStorage.setItem('theme', 'light');
-      }
-    });
-  }
-
-  // small helper to avoid putting the html itself
-  //just in case
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }}
+});
