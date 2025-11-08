@@ -2,9 +2,10 @@
 body {
   margin: 0;
   background-color: #f0f8ff;
-  font-family: 'Lexend', sans-serif;
+  font-family: 'Red Hat Text', sans-serif;
   color: #333333;
   padding: 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* container centers content horizontally and adds breathing room */
@@ -50,7 +51,7 @@ input[type="text"] {
   border-right: none;                 /* merge with button */
   border-radius: 24px 0 0 24px;       /* round left side */
   outline: none;
-  font-family: 'Lexend', sans-serif;
+  font-family: 'Red Hat Text', sans-serif;
 }
 
 /* button next to input */
@@ -90,6 +91,7 @@ button:disabled {
   right: 20px;
   background: #0a0929;
   color: #d3d3d3;
+  border: none;
   border-radius: 50%;
   width: 44px;
   height: 44px;
@@ -98,10 +100,13 @@ button:disabled {
   justify-content: center;
   cursor: pointer;
   z-index: 1000;
+  padding: 0;
+  transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
 .dark-mode-toggle:hover {
   background: #1a1a2e;
+  transform: scale(1.05);
 }
 
 body.dark-mode {

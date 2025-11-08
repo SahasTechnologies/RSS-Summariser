@@ -138,7 +138,7 @@ function renderArticles() {
   const read = loadRead();
   const items = Object.keys(cache)
     .map((k) => cache[k])
-    .filter((it) => !read[it.url]);
+    .filter((it) => !read[it.url]); // Only show unread articles
   items.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   const container = document.createElement('div');
   items.forEach((item) => {
@@ -216,24 +216,35 @@ function getItemDescription(item) {
 async function fetchAndProcessFeed(feedUrl) {
   const text = await fetchFeedContents(feedUrl);
   const xml = parseXml(text);
-  const nodes = Array.from(xml.querySelectorAll('item, entry')).slice(0, 5);
+  const nodes = Array.from(xml.querySelectorAll('item, entry')).slice(0, 5); // Always get first 5
   if (nodes.length === 0) {
     throw new Error('Nothing found here... check if you have the right URL');
   }
   const cache = loadCache();
+  const read = loadRead(); // Load read articles to skip them
+  
   for (let item of nodes) {
     const url = getItemLink(item);
     if (!url) continue;
     const pubDate = parseDateFromItem(item);
+    
+    // If article exists in cache
     if (cache[url]) {
+      // Update date if available
       if (pubDate) {
         cache[url].date = pubDate.toISOString();
         saveCache(cache);
       }
-      continue;
+      continue; // Skip already cached articles
     }
+    
+    // Skip if marked as read (shouldn't happen but safety check)
+    if (read[url]) continue;
+    
     const title = getItemTitle(item);
     const description = getItemDescription(item);
+    
+    // Add to cache without summary first
     cache[url] = {
       url,
       title,
@@ -242,7 +253,9 @@ async function fetchAndProcessFeed(feedUrl) {
     };
     saveCache(cache);
     renderArticles();
-  const summary = await summariseText(`${title}\n\n${description}`);
+    
+    // Summarize the article
+    const summary = await summariseText(`${title}\n\n${description}`);
     cache[url].summary = summary;
     saveCache(cache);
     renderArticles();
@@ -252,7 +265,9 @@ async function fetchAndProcessFeed(feedUrl) {
 async function checkFeedsForUpdates() {
   const feeds = loadFeeds();
   for (const f of feeds) {
-    try { await fetchAndProcessFeed(f); } catch (_) {}
+    try { 
+      await fetchAndProcessFeed(f); // This will check for new articles and summarize them
+    } catch (_) {}
   }
 }
 
@@ -317,8 +332,16 @@ if (
   icon.textContent = 'light_mode';
 }
 
-// Theme toggle handler
+// Theme toggle handler with animation
 toggleBtn.addEventListener('click', () => {
+  // Add rotation animation
+  icon.style.transform = 'rotate(360deg)';
+  icon.style.transition = 'transform 0.5s ease';
+  
+  setTimeout(() => {
+    icon.style.transform = 'rotate(0deg)';
+  }, 500);
+  
   document.body.classList.toggle('dark-mode');
   if (document.body.classList.contains('dark-mode')) {
     icon.textContent = 'light_mode';
